@@ -1,0 +1,174 @@
+# notes for PSM2
+
+When using an SVM model for classification, you need to extract features from the images because SVMs work with fixed-size feature vectors rather than raw image data. Pre-trained deep learning models like MobileNetV3 are commonly used for feature extraction because they are lightweight and efficient. However, you are not limited to MobileNetV3—you can use other pre-trained models depending on your requirements.
+
+Alternative Pre-trained Models for Feature Extraction
+Here are some other suitable models you can use for feature extraction with SVM:
+
+ResNet50: A deeper model that often provides better feature representations.
+EfficientNet: Known for its efficiency and high accuracy.
+VGG16 or VGG19: Simpler architectures but still effective for feature extraction.
+InceptionV3: Good for extracting features from complex datasets.
+Why Use MobileNetV3?
+MobileNetV3 is lightweight and fast, making it ideal for scenarios where computational resources are limited.
+It provides good feature representations for tasks like FER.
+How to Use Another Model for Feature Extraction
+If you want to use a different pre-trained model, you can replace MobileNetV3 with another model from tensorflow.keras.applications. For example:
+
+Replace MobileNetV3 with ResNet50:
+    
+from tensorflow.keras.applications import ResNet50
+from tensorflow.keras.applications.resnet50 import preprocess_input
+
+# Load ResNet50 for feature extraction
+base_model = ResNet50(weights='imagenet', include_top=False, pooling='avg', input_shape=(img_size, img_size, 3))
+
+Replace MobileNetV3 with EfficientNet:
+    
+from tensorflow.keras.applications import EfficientNetB0
+from tensorflow.keras.applications.efficientnet import preprocess_input
+
+# Load EfficientNetB0 for feature extraction
+base_model = EfficientNetB0(weights='imagenet', include_top=False, pooling='avg', input_shape=(img_size, img_size, 3))
+
+Replace MobileNetV3 with VGG16:
+    
+from tensorflow.keras.applications import VGG16
+from tensorflow.keras.applications.vgg16 import preprocess_input
+
+# Load VGG16 for feature extraction
+base_model = VGG16(weights='imagenet', include_top=False, pooling='avg', input_shape=(img_size, img_size, 3))
+
+Final Recommendation
+If you are satisfied with the performance and speed of MobileNetV3, you can continue using it.
+If you want to experiment with other models to potentially improve accuracy, try ResNet50 or EfficientNetB0, 
+as they are commonly used for feature extraction and often provide better results for tasks like FER.
+
+###################################################################################################################################################################################
+
+How to Save and Load the Trained Model
+1. Save the Trained Model
+You can save the trained SVM model to a file using joblib:
+# Load the saved SVM model
+loaded_model = joblib.load("svm_model.pkl")
+print("Model loaded successfully")
+
+# Use the loaded model to make predictions
+predicted_labels = loaded_model.predict(test_features_reduced)
+
+This will save the model to a file named svm_model.pkl in the current working directory.
+
+2. Load the Saved Model
+Later, you can load the saved model and use it for predictions without retraining:
+# Load the saved SVM model
+loaded_model = joblib.load("svm_model.pkl")
+print("Model loaded successfully")
+
+# Use the loaded model to make predictions
+predicted_labels = loaded_model.predict(test_features_reduced)
+
+3. Save the PCA Model (Optional)
+If you are using PCA for dimensionality reduction, you should also save the PCA model so that you can apply the same transformation to new data:
+# Save the PCA model
+joblib.dump(pca, "pca_model.pkl")
+print("PCA model saved as pca_model.pkl")
+
+To load the PCA model:
+# Load the PCA model
+loaded_pca = joblib.load("pca_model.pkl")
+print("PCA model loaded successfully")
+
+# Transform new data using the loaded PCA model
+new_data_reduced = loaded_pca.transform(new_data)
+
+Complete Example
+Here’s how you can save both the SVM and PCA models:
+import joblib
+
+# Save the trained SVM model
+joblib.dump(svm_model, "svm_model.pkl")
+print("SVM model saved as svm_model.pkl")
+
+# Save the PCA model
+joblib.dump(pca, "pca_model.pkl")
+print("PCA model saved as pca_model.pkl")
+
+And later, load them for use:
+# Load the SVM model
+svm_model = joblib.load("svm_model.pkl")
+print("SVM model loaded successfully")
+
+# Load the PCA model
+pca = joblib.load("pca_model.pkl")
+print("PCA model loaded successfully")
+
+# Transform new data using the loaded PCA model
+new_data_reduced = pca.transform(new_data)
+
+# Make predictions using the loaded SVM model
+predicted_labels = svm_model.predict(new_data_reduced)
+
+Why Save Models?
+Avoid Retraining:
+Training large models can be time-consuming. Saving the model allows you to reuse it without retraining.
+Deployment:
+Saved models can be deployed in production systems to make predictions on new data.
+Reproducibility:
+Saving models ensures that you can reproduce results later without retraining.
+
+
+#######################################################################################################################
+DL MODEL 
+
+The difference between the two model.summary() outputs is due to how the models are structured and how the pre-trained MobileNetV3Large is integrated into the new model. Let me explain why the changes were made, how they affect accuracy, and why the new model is still based on MobileNetV3Large.
+
+1. Why Is the Model Different?
+Previous Model (MobileNetV3Large):
+
+The previous model directly used the MobileNetV3Large architecture with its default layers and structure.
+It included all the layers of MobileNetV3Large and additional layers for classification.
+New Model (Sequential):
+
+The new model still uses MobileNetV3Large as the base model, but it is wrapped inside a Sequential model.
+The MobileNetV3Large is used as a feature extractor (with include_top=False), and additional layers are added on top for classification.
+The key difference is that the new model freezes the base model initially and then fine-tunes it later, which is a common transfer learning technique to improve accuracy on smaller datasets.
+
+2. Why Was the Model Changed?
+The changes were made to:
+
+Leverage Transfer Learning:
+
+By freezing the MobileNetV3Large base model initially, the pre-trained weights are preserved, and the model focuses on learning the new classification layers.
+Fine-tuning the base model later allows the model to adapt the pre-trained features to your specific dataset.
+Reduce Overfitting:
+
+Dropout layers were added to reduce overfitting, which is a common issue when training deep models on small datasets.
+Simplify the Classification Head:
+
+The new classification head (dense layers) is simpler and tailored to your dataset, which helps the model generalize better.
+3. How Does This Improve Accuracy?
+Freezing and Fine-Tuning:
+
+Initially freezing the base model prevents the pre-trained weights from being overwritten during the early stages of training.
+Fine-tuning the base model later allows the model to adapt to your dataset, improving accuracy.
+Dropout Layers:
+
+Dropout layers reduce overfitting by randomly deactivating neurons during training, which forces the model to learn more robust features.
+Learning Rate Scheduling:
+
+The learning rate scheduler (ReduceLROnPlateau) dynamically reduces the learning rate when the validation loss plateaus, allowing the model to converge more effectively.
+4. Why Is the Accuracy Improvement Small?
+The small improvement in accuracy (0.2) suggests that the model is still not fully optimized for your dataset. This could be due to:
+
+Dataset Size:
+
+If your dataset is small, the model may not have enough data to learn effectively.
+Class Imbalance:
+
+If some classes have significantly fewer samples than others, the model may struggle to learn minority classes.
+Preprocessing:
+
+The preprocessing steps (e.g., resizing, normalization) may not fully align with the pre-trained model's expectations.
+Model Complexity:
+
+MobileNetV3Large is a lightweight model designed for efficiency, not necessarily for maximum accuracy. A more complex model (e.g., ResNet50 or EfficientNet) might perform better but would require more computational resources.
